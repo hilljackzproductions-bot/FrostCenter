@@ -64,7 +64,7 @@ class ECAccess:
         self._read_only = read_only
         self._fd = None
         try:
-            self._fd = os.open('/dev/port', os.O_RDWR)
+            self._fd = os.open('/sys/kernel/debug/ec/ec0/io', os.O_RDWR)
         except PermissionError:
             raise ECAccessError(
                 "Cannot open /dev/port: permission denied. "
@@ -118,24 +118,12 @@ class ECAccess:
         raise ECTimeoutError("EC output buffer not ready (OBF timeout)")
 
     def _do_read(self, register):
-        """Execute one EC read attempt (no retry)."""
-        self._wait_ibf_clear()
-        self._write_port(EC_SC, EC_CMD_READ)
-        self._wait_ibf_clear()
-        self._write_port(EC_DATA, register)
-        self._wait_ibf_clear()
-        self._wait_obf_set()
-        return self._read_port(EC_DATA)
+        """Read one byte directly from the EC debugfs interface."""
+        return self._read_port(register)
 
     def _do_write(self, register, value):
-        """Execute one EC write attempt (no retry)."""
-        self._wait_ibf_clear()
-        self._write_port(EC_SC, EC_CMD_WRITE)
-        self._wait_ibf_clear()
-        self._write_port(EC_DATA, register)
-        self._wait_ibf_clear()
-        self._write_port(EC_DATA, value)
-        self._wait_ibf_clear()
+        """Write one Byte directly to the EC debugfs interface."""
+        os.pwrite(self._fd, bytes([value]), register)
 
     def read_byte(self, register):
         """Read one byte from an EC register.
